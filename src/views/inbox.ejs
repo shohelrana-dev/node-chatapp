@@ -1,0 +1,127 @@
+<%- include('./partials/header.ejs') %>
+<div id="chat-container">
+    <div id="search-container">
+        <input type="text" placeholder="Search"/>
+    </div>
+    <div id="conversation-list">
+        <% data.forEach(function(conversation){ %>
+            <% if(conversation.creator.id == loggedInUser._id){ %>
+                <div class="conversation"
+                     onclick="getMessages('<%- conversation._id %>')">
+                    <img src="/uploads/avatars/<%- conversation.participant.avatar ? conversation.participant.avatar : 'placeholder.png' %>"/>
+                    <div class="title-text"><%- conversation.participant.name %></div>
+                    <di class="created-date"> Apr 16</di>
+                    <div class="conversation-message">This is a message</div>
+                </div>
+            <% }else{ %>
+                <div class="conversation"
+                     onclick="getMessages('<%- conversation._id %>')">
+                    <img src="/uploads/avatars/<%- conversation.creator.avatar ? conversation.creator.avatar : 'placeholder.png' %>"/>
+                    <div class="title-text"><%- conversation.creator.name %></div>
+                    <di class="created-date"> Apr 16</di>
+                    <div class="conversation-message">This is a message</div>
+                </div>
+            <% } %>
+        <% }) %>
+    </div>
+    <div id="new-message-container">
+        <a href="#" onclick="openModal()">+</a>
+    </div>
+    <div id="chat-title">
+        <span>Sumit</span>
+        <img src="./images/trash.png" alt="Delete Conversation"/>
+    </div>
+    <div id="chat-message-list">
+
+    </div>
+    <form id="chat-form" method="post">
+        <img src="./images/attachment.png"/>
+        <input type="hidden" name="conversationId" value=""/>
+        <input type="text" name="message" placeholder="Type a message"/>
+    </form>
+</div>
+
+<%- include('./partials/add-conversation-modal.ejs'); %>
+
+<script>
+    const socket = io('<%= process.env.APP_URL %>');
+    let chatForm = document.getElementById('chat-form');
+    let chatMessageList = document.getElementById('chat-message-list');
+
+    chatForm.addEventListener('submit', chatFormSubmit);
+
+    let conversationId;
+    let participant;
+    let loggedInUserId = '<%= loggedInUser._id %>';
+    let loggedInUserName = '<%= loggedInUser.name %>';
+    let loggedInUserAvatar = '<%= loggedInUser.avatar %>';
+
+    async function getMessages(cv_id, name) {
+        let response = await fetch(`/inbox/messages/${cv_id}`);
+        let result = await response.json();
+
+        participant = result.participant;
+        conversationId = result.conversationId;
+
+        let generateHtml = '';
+        result.messages.forEach(message => {
+            let messageClassBy = message.sender.id === loggedInUserId ? 'you-message' : 'other-message';
+            generateHtml += `
+                <div class="message-row ${messageClassBy}">
+                    <div class="message-content">
+                        <div class="message-text">${message.text}</div>
+                        <div class="message-time">${moment(message.createdAt).fromNow()}</div>
+                    </div>
+                </div>
+            `;
+        })
+        chatMessageList.innerHTML = generateHtml;
+    }
+
+    async function chatFormSubmit(ev) {
+        ev.preventDefault();
+
+        let message = this.message.value;
+        let bodyData = {
+            text: message,
+            sender: {
+                id: loggedInUserId,
+                name: loggedInUserName,
+                avatar: loggedInUserAvatar
+            },
+            receiver: {
+                id: participant.id,
+                name: participant.name,
+                avatar: participant.avatar
+            },
+            conversationId
+        };
+        let response = await fetch(`/inbox/messages/${conversationId}`, {
+            method: this.method,
+            body: JSON.stringify(bodyData),
+            headers: {
+                "Content-type": 'application/json; charset=UTF-8'
+            }
+        });
+        let result = await response.json();
+
+        if (result.success) {
+            this.reset();
+        }
+    }
+
+    socket.on('new_message', (message) => {
+        let messageClassBy = message.sender.id === loggedInUserId ? 'you-message' : 'other-message';
+        let messageHtml = `
+                <div class="message-row ${messageClassBy}">
+                    <div class="message-content">
+                        <div class="message-text">${message.text}</div>
+                        <div class="message-time">${moment(message.createdAt).fromNow()}</div>
+                    </div>
+                </div>
+            `;
+        chatMessageList.querySelector('.message-row:first-child').insertAdjacentHTML('beforebegin', messageHtml);
+    })
+</script>
+
+<%- include('./partials/footer.ejs') %>

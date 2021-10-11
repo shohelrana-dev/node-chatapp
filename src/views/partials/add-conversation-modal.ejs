@@ -1,0 +1,90 @@
+<div class="modal-wrapper" id="add-conversation-modal">
+    <div class="modal">
+      <a onclick="closeModal()" class="modal-close">+</a>
+      <div class="modal-title">
+        <h2>Create New Conversation</h2>
+      </div>
+      <div class="modal-body">
+        <form id="add-conversation-form">
+          <input
+            type="text"
+            placeholder="search user by name or email or mobile"
+            name="user"
+            id="user"
+            autocomplete="off"
+          />
+          <p class="error"></p>
+          <div class="search_users"></div>
+          <input type="submit" value="Submit" class="hide" />
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+    const modal = document.querySelector("#add-conversation-modal");
+    function closeModal() {
+      modal.style.display = "none";
+      // reset
+      users_placeholder.style.display = "none";
+      input.value = "";
+    }
+    function openModal() {
+      modal.style.display = "block";
+    }
+
+    let input = document.querySelector('input#user');
+    let conversation_list = document.querySelector('#conversation-list');
+    let users_placeholder = document.querySelector('.search_users');
+
+    input.addEventListener('keyup', searchUsers);
+
+    async function searchUsers() {
+      let response = await fetch('/inbox/search', {
+        method: 'POST',
+        body: JSON.stringify({user: input.value}),
+        headers: {
+          "Content-type": 'application/json; charset=UTF-8'
+        }
+      })
+      let result = await response.json();
+
+      if(result.length > 0){
+        let generateHtml = '<ul class="users-placeholder">';
+        result.forEach((user)=>{
+          let avatar = user.avatar ? `uploads/avatars/${user.avatar}` : 'uploads/avatars/placeholder.png';
+          generateHtml += `
+          <li onclick="createConversation('${user._id}', '${user.name}', '${user.avatar}')">
+              <div class="user">
+                <div class="avatar">
+                  <img src="${avatar}" />
+                </div>
+                <div class="username">${user.name}</div>
+              </div>
+            </li>
+          `;
+        });
+        generateHtml += '</ul>';
+
+        users_placeholder.innerHTML = generateHtml;
+        users_placeholder.style.display = 'block';
+      }
+    }
+
+    async function createConversation(participant_id, name, avatar) {
+      let response = await fetch('/inbox/conversation', {
+        method: 'POST',
+        body: JSON.stringify({
+          participant: name,
+          id: participant_id,
+          avatar: avatar ? avatar : null
+        }),
+        headers: {
+          "Content-type": 'application/json; charset=UTF-8'
+        }
+      });
+      let result = await response.json();
+      if(result.success){
+        location.reload();
+      }
+    }
+  </script>

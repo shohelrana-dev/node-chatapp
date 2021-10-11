@@ -1,0 +1,108 @@
+<div class="modal-wrapper" id="add-user-modal">
+  <div class="modal">
+    <a href="#" onclick="closeModal()" class="modal-close">+</a>
+    <div class="modal-title">
+      <h2>Create New User</h2>
+    </div>
+    <div class="modal-body">
+      <form id="add-user-form" action="/users" method="POST" enctype="multipart/form-data">
+        <input type="text" placeholder="enter name" name="name" />
+        <p class="error name-error"></p>
+
+        <input type="text" placeholder="enter email" name="email" />
+        <p class="error email-error"></p>
+
+        <input type="text" placeholder="enter mobile" name="mobile" />
+        <p class="error mobile-error"></p>
+
+        <input type="password" placeholder="enter password" name="password" />
+        <p class="error password-error"></p>
+
+        <input type="file" name="avatar" />
+        <p class="error avatar-error"></p>
+
+        <p class="error common-error"></p>
+
+        <input type="submit" value="Submit" />
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  let modal = document.querySelector("#add-user-modal");
+  let form = document.querySelector("#add-user-form");
+
+  function closeModal() {
+    modal.style.display = "none";
+  }
+  function openModal() {
+    modal.style.display = "block";
+  }
+
+  //form submit handler
+  form.addEventListener('submit', async function (event) {
+    //stop reload the page
+    event.preventDefault();
+
+    //disable submit button
+    let button = form.querySelector('input[type="submit"]');
+    button.disabled = true;
+    button.value = 'Submitting...'
+
+    //clean error first
+    let errorPlaceholders = document.querySelectorAll('p.error');
+    errorPlaceholders.forEach(placeholder => {
+      placeholder.style.display = 'none';
+    });
+    let inputErrors = document.querySelectorAll('input.error');
+    inputErrors.forEach(inputError => {
+      inputError.classList.remove('error');
+    });
+
+    //submit form data
+    let formData = new FormData(form);
+    let response = await fetch(form.action, {
+      method: form.method,
+      body: formData
+    });
+    let result = await response.json();
+
+    button.disabled = false;
+    button.value = 'Submit';
+
+    //handle errors and response
+    if (result.errors) {
+      //errors
+      Object.keys(result.errors).forEach(fieldName => {
+        if (form[fieldName]) {
+          form[fieldName].classList.add('error');
+        }
+
+        //set all errors on p tags
+        let errorPlaceholder = document.querySelector(`.${fieldName}-error`);
+        errorPlaceholder.textContent = result.errors[fieldName].msg;
+
+        //make all placeholder visible
+        errorPlaceholder.style.display = 'block';
+      })
+    }
+
+    //success
+    if (result.success) {
+      let succesToasify = Toastify({
+        text: `${result.message} Reloading the list....`,
+        duration: 2000
+      });
+      succesToasify.showToast();
+      closeModal();
+      document.querySelector('p.error').style.display = 'none';
+
+      //realod the page after 2 second
+      setTimeout(() => {
+        location.reload();
+      }, 2000)
+    }
+
+  });
+</script>
